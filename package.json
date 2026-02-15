@@ -6,10 +6,6 @@
     "./components/*": "./src/components/*",
     "./encryptAssets.js": "./encryptAssets.js"
   },
-  "scripts": {
-    "encrypt": "node encryptAssets.js",
-    "encrypt:dummy": "DUMMY=true node encryptAssets.js"
-  },
   "dependencies": {
     "buffer": "^6.0.3",
     "scrypt-js": "^3.0.1",

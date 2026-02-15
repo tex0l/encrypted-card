@@ -3,21 +3,25 @@ import { promisify } from 'node:util'
 import { access, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { Buffer } from 'node:buffer'
-import path, { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const workingDirectory = dirname(fileURLToPath(import.meta.url))
+import path from 'node:path'
 
 const scryptAsync = promisify(scrypt)
 const N = 1024; const r = 8; const p = 1
 const dkLen = 32
 
-const isDummy = process.env.DUMMY === 'true'
+const required = (name) => {
+  const value = process.env[name]
+  if (!value) {
+    console.error(`Missing required environment variable: ${name}`)
+    process.exit(1)
+  }
+  return value
+}
 
-// Configurable paths via environment variables, with sensible standalone defaults
-const saltFile = process.env.ENCRYPT_SALT_FILE ?? path.join(workingDirectory, 'fixtures', 'public', isDummy ? 'saltDummy.txt' : 'salt.txt')
-const toEncryptDir = process.env.ENCRYPT_SOURCE_DIR ?? path.join(workingDirectory, isDummy ? 'fixtures/to_encrypt' : 'to_encrypt')
-const publicEncrypted = process.env.ENCRYPT_OUTPUT_DIR ?? path.join(workingDirectory, 'fixtures', 'public', isDummy ? 'encryptedDummy' : 'encrypted')
+const saltFile = required('ENCRYPT_SALT_FILE')
+const toEncryptDir = required('ENCRYPT_SOURCE_DIR')
+const publicEncrypted = required('ENCRYPT_OUTPUT_DIR')
+const password = Buffer.from(required('PASSWORD').normalize('NFKC'), 'utf8')
 
 const getSalt = async (saltPath = saltFile) => {
   try {
@@ -32,14 +36,6 @@ const getSalt = async (saltPath = saltFile) => {
     return salt
   }
 }
-
-const getPassword = () => {
-  if (isDummy) return normalizePassword('my-super-secret-password')
-  else if (process.env.PASSWORD) return normalizePassword(process.env.PASSWORD)
-  else return null // Skip prod encryption if PASSWORD not defined
-}
-
-const normalizePassword = password => Buffer.from(password.normalize('NFKC'), 'utf8')
 
 const deriveKey = async (password, salt) => await scryptAsync(password, salt, dkLen, { N, r, p })
 
@@ -95,14 +91,12 @@ const verifyEncryptedAssets = async (key) => {
   const encryptedFiles = (await listFilesRecursively(publicEncrypted))
     .map(f => f.replace(/\.encrypted$/, ''))
 
-  // Check if file lists match
   if (sourceFiles.length !== encryptedFiles.length ||
       !sourceFiles.every((f, i) => f === encryptedFiles[i])) {
-    console.log(`[${isDummy ? 'dummy' : 'prod'}] File list mismatch, re-encrypting all assets...`)
+    console.log('File list mismatch, re-encrypting all assets...')
     return false
   }
 
-  // Verify each encrypted file can be decrypted and matches source
   for (const file of sourceFiles) {
     const sourcePath = path.join(toEncryptDir, file)
     const encryptedPath = path.join(publicEncrypted, file + '.encrypted')
@@ -113,11 +107,11 @@ const verifyEncryptedAssets = async (key) => {
       const decryptedContent = decryptFile(encryptedContent, key)
 
       if (!sourceContent.equals(decryptedContent)) {
-        console.log(`[${isDummy ? 'dummy' : 'prod'}] Content mismatch for ${file}, re-encrypting all assets...`)
+        console.log(`Content mismatch for ${file}, re-encrypting all assets...`)
         return false
       }
     } catch {
-      console.log(`[${isDummy ? 'dummy' : 'prod'}] Decryption failed for ${file}, re-encrypting all assets...`)
+      console.log(`Decryption failed for ${file}, re-encrypting all assets...`)
       return false
     }
   }
@@ -135,18 +129,11 @@ const encryptAllFiles = async (key) => {
     await mkdir(path.dirname(encryptedPath), { recursive: true })
     const sourceContent = await readFile(sourcePath)
     await writeFile(encryptedPath, await encryptFile(sourceContent, key))
-    console.log(`[${isDummy ? 'dummy' : 'prod'}] Encrypted: ${file}`)
+    console.log(`Encrypted: ${file}`)
   }
 }
 
 const main = async () => {
-  const password = getPassword()
-
-  if (password === null) {
-    console.log('[prod] PASSWORD not defined, skipping prod encryption.')
-    return
-  }
-
   const salt = await getSalt()
   const key = await deriveKey(password, salt)
 
@@ -155,17 +142,15 @@ const main = async () => {
   if (encryptedDirExists) {
     const isValid = await verifyEncryptedAssets(key)
     if (isValid) {
-      console.log(`[${isDummy ? 'dummy' : 'prod'}] All encrypted assets are valid, skipping re-encryption.`)
+      console.log('All encrypted assets are valid, skipping re-encryption.')
       return
     }
 
-    // Remove invalid encrypted directory
     await rm(publicEncrypted, { recursive: true, force: true })
   }
 
-  // Encrypt all files
   await encryptAllFiles(key)
-  console.log(`[${isDummy ? 'dummy' : 'prod'}] Encryption complete.`)
+  console.log('Encryption complete.')
 }
 
 main()
