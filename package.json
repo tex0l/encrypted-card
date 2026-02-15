@@ -1,0 +1,22 @@
+{
+  "name": "@tex0l/encrypted-card",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./components/*": "./src/components/*",
+    "./encryptAssets.js": "./encryptAssets.js"
+  },
+  "scripts": {
+    "encrypt": "node encryptAssets.js",
+    "encrypt:dummy": "DUMMY=true node encryptAssets.js"
+  },
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "scrypt-js": "^3.0.1",
+    "vcard-creator": "^0.7.2"
+  },
+  "peerDependencies": {
+    "@iconify/vue": "^5.0.0",
+    "vue": "^3.0.0"
+  }
+}
