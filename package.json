@@ -2,6 +2,9 @@
   "name": "@tex0l/encrypted-card",
   "version": "0.0.1",
   "type": "module",
+  "scripts": {
+    "test": "node --test 'test/**/*.test.js'"
+  },
   "exports": {
     "./components/*": "./src/components/*",
     "./encryptAssets.js": "./encryptAssets.js"

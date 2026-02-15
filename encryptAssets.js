@@ -9,27 +9,14 @@ const scryptAsync = promisify(scrypt)
 const N = 1024; const r = 8; const p = 1
 const dkLen = 32
 
-const required = (name) => {
-  const value = process.env[name]
-  if (!value) {
-    console.error(`Missing required environment variable: ${name}`)
-    process.exit(1)
-  }
-  return value
-}
+export const normalizePassword = (password) => Buffer.from(password.normalize('NFKC'), 'utf8')
 
-const saltFile = required('ENCRYPT_SALT_FILE')
-const toEncryptDir = required('ENCRYPT_SOURCE_DIR')
-const publicEncrypted = required('ENCRYPT_OUTPUT_DIR')
-const password = Buffer.from(required('PASSWORD').normalize('NFKC'), 'utf8')
-
-const getSalt = async (saltPath = saltFile) => {
+export const getSalt = async (saltPath) => {
   try {
     await access(saltPath, constants.F_OK)
     const saltB64 = await readFile(saltPath)
     return Buffer.from(saltB64.toString(), 'base64')
   } catch {
-    console.log(`No salt was found at ${saltPath}, generating one.`)
     await mkdir(path.dirname(saltPath), { recursive: true })
     const salt = randomBytes(16)
     await writeFile(saltPath, salt.toString('base64'))
@@ -37,9 +24,12 @@ const getSalt = async (saltPath = saltFile) => {
   }
 }
 
-const deriveKey = async (password, salt) => await scryptAsync(password, salt, dkLen, { N, r, p })
+export const deriveKey = async (password, salt) => {
+  const key = await scryptAsync(password, salt, dkLen, { N, r, p })
+  return key
+}
 
-const encryptFile = async (buf, key) => {
+export const encryptFile = (buf, key) => {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
   const encryptedData = Buffer.concat([cipher.update(buf), cipher.final()])
@@ -47,7 +37,7 @@ const encryptFile = async (buf, key) => {
   return Buffer.concat([iv, encryptedData, authTag])
 }
 
-const decryptFile = (encryptedBuf, key) => {
+export const decryptFile = (encryptedBuf, key) => {
   const iv = encryptedBuf.subarray(0, 12)
   const authTag = encryptedBuf.subarray(-16)
   const ciphertext = encryptedBuf.subarray(12, -16)
@@ -86,20 +76,19 @@ const dirExists = async (dir) => {
   }
 }
 
-const verifyEncryptedAssets = async (key) => {
-  const sourceFiles = await listFilesRecursively(toEncryptDir)
-  const encryptedFiles = (await listFilesRecursively(publicEncrypted))
+const verifyEncryptedAssets = async (sourceDir, outputDir, key) => {
+  const sourceFiles = await listFilesRecursively(sourceDir)
+  const encryptedFiles = (await listFilesRecursively(outputDir))
     .map(f => f.replace(/\.encrypted$/, ''))
 
   if (sourceFiles.length !== encryptedFiles.length ||
       !sourceFiles.every((f, i) => f === encryptedFiles[i])) {
-    console.log('File list mismatch, re-encrypting all assets...')
     return false
   }
 
   for (const file of sourceFiles) {
-    const sourcePath = path.join(toEncryptDir, file)
-    const encryptedPath = path.join(publicEncrypted, file + '.encrypted')
+    const sourcePath = path.join(sourceDir, file)
+    const encryptedPath = path.join(outputDir, file + '.encrypted')
 
     try {
       const sourceContent = await readFile(sourcePath)
@@ -107,11 +96,9 @@ const verifyEncryptedAssets = async (key) => {
       const decryptedContent = decryptFile(encryptedContent, key)
 
       if (!sourceContent.equals(decryptedContent)) {
-        console.log(`Content mismatch for ${file}, re-encrypting all assets...`)
         return false
       }
     } catch {
-      console.log(`Decryption failed for ${file}, re-encrypting all assets...`)
       return false
     }
   }
@@ -119,39 +106,38 @@ const verifyEncryptedAssets = async (key) => {
   return true
 }
 
-const encryptAllFiles = async (key) => {
-  const sourceFiles = await listFilesRecursively(toEncryptDir)
+/**
+ * Encrypt all files in sourceDir into outputDir using AES-256-GCM.
+ *
+ * @param {object} options
+ * @param {string} options.sourceDir - Directory containing files to encrypt
+ * @param {string} options.outputDir - Directory to write encrypted files to
+ * @param {string} options.saltFile  - Path to the salt file (created if missing)
+ * @param {string} options.password  - Encryption password
+ * @returns {Promise<{ encrypted: string[], skipped: boolean }>}
+ */
+export const encryptAssets = async ({ sourceDir, outputDir, saltFile, password }) => {
+  const normalizedPassword = normalizePassword(password)
+  const salt = await getSalt(saltFile)
+  const key = await deriveKey(normalizedPassword, salt)
 
+  if (await dirExists(outputDir)) {
+    const isValid = await verifyEncryptedAssets(sourceDir, outputDir, key)
+    if (isValid) {
+      return { encrypted: [], skipped: true }
+    }
+    await rm(outputDir, { recursive: true, force: true })
+  }
+
+  const sourceFiles = await listFilesRecursively(sourceDir)
   for (const file of sourceFiles) {
-    const sourcePath = path.join(toEncryptDir, file)
-    const encryptedPath = path.join(publicEncrypted, file + '.encrypted')
+    const sourcePath = path.join(sourceDir, file)
+    const encryptedPath = path.join(outputDir, file + '.encrypted')
 
     await mkdir(path.dirname(encryptedPath), { recursive: true })
     const sourceContent = await readFile(sourcePath)
-    await writeFile(encryptedPath, await encryptFile(sourceContent, key))
-    console.log(`Encrypted: ${file}`)
-  }
-}
-
-const main = async () => {
-  const salt = await getSalt()
-  const key = await deriveKey(password, salt)
-
-  const encryptedDirExists = await dirExists(publicEncrypted)
-
-  if (encryptedDirExists) {
-    const isValid = await verifyEncryptedAssets(key)
-    if (isValid) {
-      console.log('All encrypted assets are valid, skipping re-encryption.')
-      return
-    }
-
-    await rm(publicEncrypted, { recursive: true, force: true })
+    await writeFile(encryptedPath, encryptFile(sourceContent, key))
   }
 
-  await encryptAllFiles(key)
-  console.log('Encryption complete.')
+  return { encrypted: sourceFiles, skipped: false }
 }
-
-main()
-  .catch(console.error)
