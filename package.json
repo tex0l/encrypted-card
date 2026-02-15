@@ -9,6 +9,9 @@
     "prepare": "npm run build"
   },
   "exports": {
+    ".": {
+      "style": "./src/index.css"
+    },
     "./components/*": "./src/components/*",
     "./encryptAssets.js": {
       "import": "./dist/encryptAssets.js",

@@ -1,0 +1,25 @@
+---
+import EncryptedBusinessCard from '@tex0l/encrypted-card/components/EncryptedBusinessCard.client.vue'
+import '../styles/global.css'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Encrypted Business Card — Example</title>
+  </head>
+  <body>
+    <EncryptedBusinessCard
+      client:only="vue"
+      salt-path="/salt.txt"
+      contact-info-path="/encrypted/contactInfo.json.encrypted"
+      image-path="/encrypted/stock-portrait.png.encrypted"
+    />
+    <script is:inline>
+      if (!window.location.hash) {
+        window.location.hash = 'demo-password'
+      }
+    </script>
+  </body>
+</html>

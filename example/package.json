@@ -1,0 +1,22 @@
+{
+  "name": "@tex0l/encrypted-card-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "encrypt": "node scripts/encrypt.js",
+    "predev": "npm run encrypt",
+    "dev": "astro dev",
+    "prebuild": "npm run encrypt",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/vue": "^5.0.0",
+    "@iconify/vue": "^5.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@tex0l/encrypted-card": "file:..",
+    "astro": "^5.0.0",
+    "tailwindcss": "^4.0.0",
+    "vue": "^3.4.0"
+  }
+}
