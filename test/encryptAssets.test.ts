@@ -11,7 +11,7 @@ import {
   deriveKey,
   getSalt,
   normalizePassword
-} from '../encryptAssets.js'
+} from '../src/encryptAssets.js'
 
 describe('normalizePassword', () => {
   it('returns a Buffer from a string password', () => {
@@ -29,7 +29,7 @@ describe('normalizePassword', () => {
 })
 
 describe('getSalt', () => {
-  let tmpDir
+  let tmpDir: string
 
   before(async () => {
     tmpDir = await mkdtemp(path.join(tmpdir(), 'salt-test-'))
@@ -100,7 +100,7 @@ describe('encryptFile / decryptFile', () => {
 })
 
 describe('encryptAssets', () => {
-  let tmpDir, sourceDir, outputDir, saltFile
+  let tmpDir: string, sourceDir: string, outputDir: string, saltFile: string
 
   before(async () => {
     tmpDir = await mkdtemp(path.join(tmpdir(), 'encrypt-assets-test-'))

@@ -3,16 +3,27 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "test": "node --test 'test/**/*.test.js'"
+    "build": "tsc",
+    "pretest": "npm run build",
+    "test": "tsx --test 'test/**/*.test.ts'",
+    "prepare": "npm run build"
   },
   "exports": {
     "./components/*": "./src/components/*",
-    "./encryptAssets.js": "./encryptAssets.js"
+    "./encryptAssets.js": {
+      "import": "./dist/encryptAssets.js",
+      "types": "./dist/encryptAssets.d.ts"
+    }
   },
   "dependencies": {
     "buffer": "^6.0.3",
     "scrypt-js": "^3.0.1",
     "vcard-creator": "^0.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.8.0"
   },
   "peerDependencies": {
     "@iconify/vue": "^5.0.0",

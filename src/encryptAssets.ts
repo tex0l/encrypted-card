@@ -1,17 +1,23 @@
-import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'node:crypto'
-import { promisify } from 'node:util'
+import { createCipheriv, createDecipheriv, randomBytes, scrypt, type BinaryLike, type ScryptOptions } from 'node:crypto'
 import { access, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 
-const scryptAsync = promisify(scrypt)
+const scryptAsync = (password: BinaryLike, salt: BinaryLike, keylen: number, options: ScryptOptions): Promise<Buffer> =>
+  new Promise((resolve, reject) => {
+    scrypt(password, salt, keylen, options, (err, derivedKey) => {
+      if (err) reject(err)
+      else resolve(derivedKey)
+    })
+  })
+
 const N = 1024; const r = 8; const p = 1
 const dkLen = 32
 
-export const normalizePassword = (password) => Buffer.from(password.normalize('NFKC'), 'utf8')
+export const normalizePassword = (password: string): Buffer => Buffer.from(password.normalize('NFKC'), 'utf8')
 
-export const getSalt = async (saltPath) => {
+export const getSalt = async (saltPath: string): Promise<Buffer> => {
   try {
     await access(saltPath, constants.F_OK)
     const saltB64 = await readFile(saltPath)
@@ -24,12 +30,11 @@ export const getSalt = async (saltPath) => {
   }
 }
 
-export const deriveKey = async (password, salt) => {
-  const key = await scryptAsync(password, salt, dkLen, { N, r, p })
-  return key
+export const deriveKey = async (password: Buffer, salt: Buffer): Promise<Buffer> => {
+  return await scryptAsync(password, salt, dkLen, { N, r, p }) as Buffer
 }
 
-export const encryptFile = (buf, key) => {
+export const encryptFile = (buf: Buffer, key: Buffer): Buffer => {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
   const encryptedData = Buffer.concat([cipher.update(buf), cipher.final()])
@@ -37,7 +42,7 @@ export const encryptFile = (buf, key) => {
   return Buffer.concat([iv, encryptedData, authTag])
 }
 
-export const decryptFile = (encryptedBuf, key) => {
+export const decryptFile = (encryptedBuf: Buffer, key: Buffer): Buffer => {
   const iv = encryptedBuf.subarray(0, 12)
   const authTag = encryptedBuf.subarray(-16)
   const ciphertext = encryptedBuf.subarray(12, -16)
@@ -48,8 +53,8 @@ export const decryptFile = (encryptedBuf, key) => {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()])
 }
 
-const listFilesRecursively = async (dir, basePath = dir) => {
-  const files = []
+const listFilesRecursively = async (dir: string, basePath: string = dir): Promise<string[]> => {
+  const files: string[] = []
   try {
     const entries = await readdir(dir)
     for (const entry of entries) {
@@ -67,7 +72,7 @@ const listFilesRecursively = async (dir, basePath = dir) => {
   return files.sort()
 }
 
-const dirExists = async (dir) => {
+const dirExists = async (dir: string): Promise<boolean> => {
   try {
     await access(dir, constants.F_OK)
     return true
@@ -76,7 +81,7 @@ const dirExists = async (dir) => {
   }
 }
 
-const verifyEncryptedAssets = async (sourceDir, outputDir, key) => {
+const verifyEncryptedAssets = async (sourceDir: string, outputDir: string, key: Buffer): Promise<boolean> => {
   const sourceFiles = await listFilesRecursively(sourceDir)
   const encryptedFiles = (await listFilesRecursively(outputDir))
     .map(f => f.replace(/\.encrypted$/, ''))
@@ -106,17 +111,22 @@ const verifyEncryptedAssets = async (sourceDir, outputDir, key) => {
   return true
 }
 
+export interface EncryptAssetsOptions {
+  sourceDir: string
+  outputDir: string
+  saltFile: string
+  password: string
+}
+
+export interface EncryptAssetsResult {
+  encrypted: string[]
+  skipped: boolean
+}
+
 /**
  * Encrypt all files in sourceDir into outputDir using AES-256-GCM.
- *
- * @param {object} options
- * @param {string} options.sourceDir - Directory containing files to encrypt
- * @param {string} options.outputDir - Directory to write encrypted files to
- * @param {string} options.saltFile  - Path to the salt file (created if missing)
- * @param {string} options.password  - Encryption password
- * @returns {Promise<{ encrypted: string[], skipped: boolean }>}
  */
-export const encryptAssets = async ({ sourceDir, outputDir, saltFile, password }) => {
+export const encryptAssets = async ({ sourceDir, outputDir, saltFile, password }: EncryptAssetsOptions): Promise<EncryptAssetsResult> => {
   const normalizedPassword = normalizePassword(password)
   const salt = await getSalt(saltFile)
   const key = await deriveKey(normalizedPassword, salt)
