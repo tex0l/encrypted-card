@@ -1,4 +1,5 @@
-import { scrypt } from 'scrypt-js'
+import scryptJs from 'scrypt-js'
+const { scrypt } = scryptJs
 
 const normalizePassword = (password: string): Uint8Array => new TextEncoder().encode(password.normalize('NFKC'))
 
