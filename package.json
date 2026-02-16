@@ -1,6 +1,6 @@
 {
   "name": "@tex0l/encrypted-card",
-  "version": "0.1.0-0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc",
@@ -29,6 +29,11 @@
     "tsx": "^4.0.0",
     "typescript": "^5.8.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tex0l/encrypted-card.git"
+  },
+  "license": "MIT",
   "peerDependencies": {
     "@iconify/vue": "^5.0.0",
     "vue": "^3.0.0"
