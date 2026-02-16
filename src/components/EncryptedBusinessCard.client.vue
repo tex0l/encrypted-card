@@ -163,7 +163,6 @@ import { Icon } from '@iconify/vue';
 
 <script>
 import { deriveKey, decrypt } from './encryption'
-import { Buffer } from 'buffer/'
 import vCard from 'vcard-creator'
 
 export default {
@@ -216,7 +215,7 @@ export default {
     async decryptContactInfo () {
       if (!this.encryptedContactInfo || !this.encryptionKey) return
       try {
-        this.contactInfo = JSON.parse(Buffer.from(await decrypt(this.encryptedContactInfo, this.encryptionKey)).toString('utf-8'))
+        this.contactInfo = JSON.parse(new TextDecoder().decode(await decrypt(this.encryptedContactInfo, this.encryptionKey)))
       } catch (error) {
         console.error('failed decryption', error)
         this.contactInfo = null
@@ -226,7 +225,7 @@ export default {
     async deriveKey () {
       if (!this.salt || !this.password) return
       try {
-        this.encryptionKey = await deriveKey(this.password, Buffer.from(this.salt, 'base64'))
+        this.encryptionKey = await deriveKey(this.password, Uint8Array.from(atob(this.salt), c => c.charCodeAt(0)))
       } catch (error) {
         console.error('failed derivation', error)
         this.encryptionKey = null

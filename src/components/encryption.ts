@@ -1,7 +1,6 @@
-import { Buffer } from 'buffer'
 import { scrypt } from 'scrypt-js'
 
-const normalizePassword = (password: string): Uint8Array => new Uint8Array(Buffer.from(password.normalize('NFKC'), 'utf8'))
+const normalizePassword = (password: string): Uint8Array => new TextEncoder().encode(password.normalize('NFKC'))
 
 const N = 1024; const r = 8; const p = 1
 const dkLen = 32
