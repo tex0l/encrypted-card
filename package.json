@@ -12,6 +12,7 @@
     ".": {
       "style": "./src/index.css"
     },
+    "./index.css": "./src/index.css",
     "./components/*": "./src/components/*",
     "./encryptAssets.js": {
       "import": "./dist/encryptAssets.js",

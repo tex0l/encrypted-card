@@ -1,2 +1,16 @@
 @import "tailwindcss";
 @import "@tex0l/encrypted-card";
+
+@theme {
+  --color-surface: #FAFAFA;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-border: #E5E7EB;
+  --color-accent: #0F172A;
+}
+
+html {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
