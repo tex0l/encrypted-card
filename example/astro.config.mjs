@@ -3,4 +3,11 @@ import vue from '@astrojs/vue'
 
 export default defineConfig({
   integrations: [vue()],
+  vite: {
+    server: {
+      fs: {
+        allow: ['..'],
+      },
+    },
+  },
 })
