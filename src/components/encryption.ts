@@ -1,5 +1,4 @@
-import scryptJs from 'scrypt-js'
-const { scrypt } = scryptJs
+import { scryptAsync } from '@noble/hashes/scrypt.js'
 
 const normalizePassword = (password: string): Uint8Array => new TextEncoder().encode(password.normalize('NFKC'))
 
@@ -7,7 +6,7 @@ const N = 1024; const r = 8; const p = 1
 const dkLen = 32
 
 export const deriveKey = async (password: string, salt: Uint8Array): Promise<CryptoKey> => {
-  const derivedKey = await scrypt(normalizePassword(password), salt, N, r, p, dkLen)
+  const derivedKey = await scryptAsync(normalizePassword(password), salt, { N, r, p, dkLen })
   // Create a new ArrayBuffer and copy the derived key into it
   const keyBuffer = new ArrayBuffer(derivedKey.length)
   new Uint8Array(keyBuffer).set(derivedKey)
