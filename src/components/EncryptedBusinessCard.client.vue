@@ -163,7 +163,7 @@ import { Icon } from '@iconify/vue';
 
 <script>
 import { deriveKey, decrypt } from './encryption'
-import vCard from 'vcard-creator'
+import { VCard } from './vcard'
 
 export default {
   props: {
@@ -185,7 +185,7 @@ export default {
     },
     downloadVCF () {
       if (!this.contactInfo) return
-      const card = new vCard()
+      const card = new VCard()
       const text = card
           .addName(this.contactInfo.lastName, this.contactInfo.firstName)
           .addCompany(this.contactInfo.companyName)
